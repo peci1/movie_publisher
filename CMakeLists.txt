@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 2.8.3)
+project(movie_publisher)
+
+find_package(catkin REQUIRED COMPONENTS rospy)
+
+catkin_package(CATKIN_DEPENDS sensor_msgs)
+
+install(PROGRAMS
+  nodes/move_publisher_node
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(FILES
+  launch/movie_publisher.launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

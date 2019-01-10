@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+
+import math
+import numbers
+import os
+import time
+
+import rospy
+from sensor_msgs.msg import Image
+
+from cv_bridge import CvBridge, CvBridgeError
+import imageio
+
+
+class MoviePublisher:
+    """Use a video file as a source for a ROS video topic.
+
+    ROS parameters (all node-private):
+
+    - movie_file (string): Path to the movie to play. Any format that ffmpeg can decode.
+    - fps (float, optional): If set, the playback will be at the specified FPS (speeding up/slowing down the movie).
+    - start (float|tuple|string, optional): If set, playback will start from the specified time.
+          Can be expressed in seconds (15.35), in (min, sec), in (hour, min, sec), or as a string: '01:03:05.35'.
+          Cannot be set together with 'end' and 'duration'.
+    - end (float|tuple|string, optional): If set, playback will stop at the specified time (not affected by start).
+          Can be expressed in seconds (15.35), in (min, sec), in (hour, min, sec), or as a string: '01:03:05.35'.
+          Cannot be set together with 'start' and 'duration'.
+    - duration (float|tuple|string, optional): If set, playback will have this duration. If end is also set, the
+          duration is counted from the end of the clip, otherwise, it is the duration from the start of the clip.
+          Can be expressed in seconds (15.35), in (min, sec), in (hour, min, sec), or as a string: '01:03:05.35'.
+          Cannot be set together with 'start' and 'end'.
+    - loop (bool, default False): Whether to loop the movie until the node is shut down. Exludes 'immediate'.
+    - immediate (bool, default False): If True, the movie will be processed and published as quickly as possible not
+          waiting for the real time. The timestamps in the resulting messages act "real-world-like" (i.e. 15 FPS means
+          the frames' timestamps will be 1/15 sec apart). You can set fake_time_start if you want these timestamps to
+          begin from a non-zero time. Excludes 'loop'.
+    - fake_time_start (float, default 0.0): Used with 'immediate' to specify the timestamp of the first message.
+    - frame_id (string, default ""): The frame_id used in the messages' headers.
+    - spin_after_end (bool, default False): If True, a rospy.spin() is called after the movie has been published.
+    - verbose (bool, default False): If True, logs info about every frame played.
+    - wait_after_publisher_created (float, default 1.0): A workaround for the case where you need to give your
+          subscribers some time after the publisher was created. Tweak this number until you get no missing start
+          messages.
+    - ffmpeg (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use.
+    """
+
+    def __init__(self):
+        self.bridge = CvBridge()
+
+        try:
+            self.file = rospy.get_param("~movie_file")
+        except KeyError:
+            rospy.logerr("movie_publisher_node: parameter ~movie_file is required")
+            raise
+
+        self.fps = rospy.get_param("~fps", float('nan'))
+        self.start = rospy.get_param("~start", None)
+        self.end = rospy.get_param("~end", None)
+        self.duration = rospy.get_param("~duration", None)
+        self.loop = rospy.get_param("~loop", False)
+
+        self.immediate = rospy.get_param("~immediate", False)
+        self.fake_time_start = rospy.Time.from_sec(rospy.get_param("~fake_time_start", 0.0))
+        self.frame_id = rospy.get_param("~frame_id", "")
+        self.spin_after_end = rospy.get_param("~spin_after_end", False)
+
+        self.verbose = rospy.get_param("~verbose", False)
+        self.wait_after_publisher_created = rospy.get_param("~wait_after_publisher_created", 1.0)
+
+        if self.immediate and self.loop:
+            raise RuntimeError("movie_publisher_node: Cannot set both ~immediate and ~loop")
+
+        ffmpeg = rospy.get_param("~ffmpeg", None)
+        if ffmpeg is not None and len(ffmpeg) > 0:
+            os.environ["FFMPEG_BINARY"] = ffmpeg
+
+        # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
+        try:
+            from moviepy.video.io.VideoFileClip import VideoFileClip
+        except imageio.core.fetching.NeedDownloadError, e:
+            rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
+            imageio.plugins.ffmpeg.download()
+            from moviepy.video.io.VideoFileClip import VideoFileClip
+
+        # import the clip
+        self.clip = VideoFileClip(self.file)
+        orig_duration = self.clip.duration
+        orig_num_frames = int(self.clip.duration * self.clip.fps)
+
+        if self.start is not None and self.start != "" and self.end is not None and self.end != "" and \
+                self.duration is not None and self.duration != "":
+            err = "At least one of ~start, ~end and ~duration parameters must remain unset"
+            rospy.logerr("movie_publisher_node: %s" % err)
+            raise RuntimeError(err)
+
+        # important: setting end before start
+        if self.end is not None and self.end != "":
+            self.clip = self.clip.set_end(self.end)
+
+        if self.start is not None and self.start != "":
+            self.clip = self.clip.set_start(self.start)
+
+        if self.duration is not None and self.duration != "":
+            duration = self.duration
+            change_end = True
+
+            # if end is specified, treat the duration as duration from the end
+            if isinstance(self.duration, numbers.Real):
+                if self.end is not None and self.end != "":
+                    duration = -self.duration
+                    change_end = False
+            self.clip = self.clip.set_duration(duration, change_end=change_end)
+
+        # if fps is not specified, play at the same fps the clip has
+        if not isinstance(self.fps, numbers.Real) or (isinstance(self.fps, float) and math.isnan(self.fps)):
+            self.fps = self.clip.fps
+
+        info = "Loaded clip %s with %i frames, duration %8.5f s and %4.2f FPS. " % (
+            self.file, orig_num_frames, orig_duration, self.clip.fps)
+        rospy.loginfo("movie_publisher_node: %s" % (info,))
+
+        if self.start is not None or self.end is not None or self.duration is not None:
+            num_frames = int(self.clip.duration * self.clip.fps)
+            info = "Subclip starts at %8.5f, ends at %8.5f and has duration of %i frames and %8.5f s." % (
+                self.clip.start, self.clip.end, num_frames, self.clip.duration)
+            rospy.loginfo("movie_publisher_node: %s" % (info,))
+
+        if self.fps != self.clip.fps:
+            rospy.loginfo(
+                "movie_publisher_node: The clip will be played at %4.2f FPS, whereas the original file has "
+                "%4.2f FPS (%s)." % (
+                self.fps, self.clip.fps, "slow-motion" if self.fps < self.clip.fps else "fast-forward"))
+
+        self.pub = rospy.Publisher("movie", Image, queue_size=10 if not self.immediate else 1000)
+
+    def play(self):
+
+        # WORKAROUND: sometimes publishers need time to establish the connection in order not to miss the first messages
+        if self.wait_after_publisher_created > 0.0:
+            time.sleep(self.wait_after_publisher_created)
+
+        rate = None
+        if not self.immediate:
+            rate = rospy.Rate(self.fps)
+
+        while not rospy.is_shutdown():
+            frame_num = 0
+            fake_frame_duration = 1.0 / self.fps
+
+            # iterate over movie frames
+            for timestamp, frame in self.clip.iter_frames(with_times=True):
+                if rospy.is_shutdown():
+                    break
+
+                try:
+                    # convert the frame to sensor_msgs/Image
+                    msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
+                    msg.header.frame_id = self.frame_id
+
+                    # in the immediate mode, we compute frame timestamps explicitly
+                    if self.immediate:
+                        stamp = self.fake_time_start + rospy.Duration.from_sec(fake_frame_duration * frame_num)
+                    else:
+                        stamp = rospy.Time.now()
+                    msg.header.stamp = stamp
+
+                    self.pub.publish(msg)
+
+                    if rate is not None:
+                        rate.sleep()
+                except CvBridgeError as e:
+                    rospy.logerr("movie_publisher_node: error decoding frame: " + str(e))
+
+                if self.verbose:
+                    timecode = timestamp + self.clip.start
+                    num_frames = int(self.clip.duration * self.clip.fps)
+
+                    info = "Frame %i/%i, time %8.5f, timecode %8.5f" % (frame_num, num_frames, timestamp, timecode)
+                    rospy.loginfo("movie_publisher_node: %s" % (info,))
+                    frame_num += 1
+
+            # if looping is not wanted, we quit after the first iteration
+            if not self.loop:
+                break
+
+        self.clip.close()
+
+        if self.spin_after_end:
+            rospy.spin()
+
+
+rospy.init_node("movie_publisher")
+
+movie_publisher = MoviePublisher()
+movie_publisher.play()
