@@ -77,7 +77,7 @@ class MoviePublisher:
         # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
         try:
             from moviepy.video.io.VideoFileClip import VideoFileClip
-        except imageio.core.fetching.NeedDownloadError, e:
+        except imageio.core.fetching.NeedDownloadError:
             rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
             imageio.plugins.ffmpeg.download()
             from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -129,7 +129,7 @@ class MoviePublisher:
             rospy.loginfo(
                 "movie_publisher_node: The clip will be played at %4.2f FPS, whereas the original file has "
                 "%4.2f FPS (%s)." % (
-                self.fps, self.clip.fps, "slow-motion" if self.fps < self.clip.fps else "fast-forward"))
+                    self.fps, self.clip.fps, "slow-motion" if self.fps < self.clip.fps else "fast-forward"))
 
         self.pub = rospy.Publisher("movie", Image, queue_size=10 if not self.immediate else 1000)
 
