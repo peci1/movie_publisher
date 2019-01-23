@@ -12,10 +12,12 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <exec_depend>bag_tools</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>ffmpeg</exec_depend>
   <exec_depend>libav</exec_depend>
   <exec_depend>python-moviepy-pip</exec_depend>
+  <exec_depend>rosbash_params</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
 </package>

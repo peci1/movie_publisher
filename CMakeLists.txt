@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(movie_publisher)
 
-find_package(catkin REQUIRED COMPONENTS rospy)
+find_package(catkin REQUIRED)
 
-catkin_package(CATKIN_DEPENDS sensor_msgs)
+catkin_package(CATKIN_DEPENDS rosbash_params sensor_msgs)
 
 install(PROGRAMS
   nodes/move_publisher_node

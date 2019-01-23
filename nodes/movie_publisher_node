@@ -34,6 +34,8 @@ class MoviePublisher:
           waiting for the real time. The timestamps in the resulting messages act "real-world-like" (i.e. 15 FPS means
           the frames' timestamps will be 1/15 sec apart). You can set fake_time_start if you want these timestamps to
           begin from a non-zero time. Excludes 'loop'.
+    - playback_rate (float, optional): If set to a number, immediate mode will not play as fast as possible, but at this
+          rate (set the rate to a number where you do not lose any messages, e.g. in image_transport/republish).
     - fake_time_start (float, default 0.0): Used with 'immediate' to specify the timestamp of the first message.
     - frame_id (string, default ""): The frame_id used in the messages' headers.
     - spin_after_end (bool, default False): If True, a rospy.spin() is called after the movie has been published.
@@ -41,6 +43,7 @@ class MoviePublisher:
     - wait_after_publisher_created (float, default 1.0): A workaround for the case where you need to give your
           subscribers some time after the publisher was created. Tweak this number until you get no missing start
           messages.
+    - publisher_queue_size (int, default 1000 in immediate mode, 10 otherwise): queue_size of the movie publisher.
     - ffmpeg (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use.
     """
 
@@ -60,12 +63,18 @@ class MoviePublisher:
         self.loop = rospy.get_param("~loop", False)
 
         self.immediate = rospy.get_param("~immediate", False)
+        self.playback_rate = rospy.get_param("~playback_rate", None)
         self.fake_time_start = rospy.Time.from_sec(rospy.get_param("~fake_time_start", 0.0))
         self.frame_id = rospy.get_param("~frame_id", "")
         self.spin_after_end = rospy.get_param("~spin_after_end", False)
 
         self.verbose = rospy.get_param("~verbose", False)
         self.wait_after_publisher_created = rospy.get_param("~wait_after_publisher_created", 1.0)
+
+        self.queue_size = rospy.get_param("~publisher_queue_size", 10 if not self.immediate else 1000)
+
+        if not isinstance(self.playback_rate, numbers.Real):
+            self.playback_rate = None
 
         if self.immediate and self.loop:
             raise RuntimeError("movie_publisher_node: Cannot set both ~immediate and ~loop")
@@ -119,8 +128,10 @@ class MoviePublisher:
             self.file, orig_num_frames, orig_duration, self.clip.fps)
         rospy.loginfo("movie_publisher_node: %s" % (info,))
 
+        num_frames = int(self.clip.duration * self.clip.fps)
+        rospy.set_param("/movie_publisher/num_frames", num_frames)
+
         if self.start is not None or self.end is not None or self.duration is not None:
-            num_frames = int(self.clip.duration * self.clip.fps)
             info = "Subclip starts at %8.5f, ends at %8.5f and has duration of %i frames and %8.5f s." % (
                 self.clip.start, self.clip.end, num_frames, self.clip.duration)
             rospy.loginfo("movie_publisher_node: %s" % (info,))
@@ -131,7 +142,7 @@ class MoviePublisher:
                 "%4.2f FPS (%s)." % (
                     self.fps, self.clip.fps, "slow-motion" if self.fps < self.clip.fps else "fast-forward"))
 
-        self.pub = rospy.Publisher("movie", Image, queue_size=10 if not self.immediate else 1000)
+        self.pub = rospy.Publisher("movie", Image, queue_size=self.queue_size)
 
     def play(self):
 
@@ -142,6 +153,8 @@ class MoviePublisher:
         rate = None
         if not self.immediate:
             rate = rospy.Rate(self.fps)
+        elif self.playback_rate is not None:
+            rate = rospy.Rate(self.playback_rate)
 
         while not rospy.is_shutdown():
             frame_num = 0
@@ -177,7 +190,8 @@ class MoviePublisher:
 
                     info = "Frame %i/%i, time %8.5f, timecode %8.5f" % (frame_num, num_frames, timestamp, timecode)
                     rospy.loginfo("movie_publisher_node: %s" % (info,))
-                    frame_num += 1
+
+                frame_num += 1
 
             # if looping is not wanted, we quit after the first iteration
             if not self.loop:

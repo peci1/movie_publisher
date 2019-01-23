@@ -34,6 +34,8 @@ In the `immediate` mode, it can also be used to convert video files to bagfiles 
       waiting for the real time. The timestamps in the resulting messages act "real-world-like" (i.e. 15 FPS means
       the frames' timestamps will be 1/15 sec apart). You can set `fake_time_start` if you want these timestamps to
       begin from a non-zero time. Excludes `loop`.
+- `playback_rate` (float, optional): If set to a number, immediate mode will not play as fast as possible, but at this
+      rate (set the rate to a number where you do not lose any messages, e.g. in image_transport/republish).
 - `fake_time_start` (float, default 0.0): Used with `immediate` to specify the timestamp of the first message.
 - `frame_id` (string, default ""): The frame_id used in the messages' headers.
 - `spin_after_end` (bool, default False): If True, a rospy.spin() is called after the movie has been published.
@@ -41,6 +43,7 @@ In the `immediate` mode, it can also be used to convert video files to bagfiles 
 - `wait_after_publisher_created` (float, default 1.0): A workaround for the case where you need to give your
       subscribers some time after the publisher was created. Tweak this number until you get no missing start
       messages.
+- `publisher_queue_size` (int, default 1000 in immediate mode, 10 otherwise): `queue_size` of the movie publisher.
 - `ffmpeg` (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use.
 
 ## movie_publisher.launch
