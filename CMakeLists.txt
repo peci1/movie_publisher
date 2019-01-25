@@ -7,6 +7,10 @@ catkin_package(CATKIN_DEPENDS rosbash_params sensor_msgs)
 
 install(PROGRAMS
   nodes/move_publisher_node
+  scripts/add_movie_to_bag
+  scripts/fix_bag_timestamp
+  scripts/merge.py
+  scripts/movie_to_bag
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
