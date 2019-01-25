@@ -49,9 +49,12 @@ with rosbag.Bag(in_bag_file) as in_bag:
     with rosbag.Bag(out_bag_file, 'w') as out_bag:
         for topic, msg, t in in_bag.read_messages():
             num_processed_messages += 1
-            if (len(topics_list) == 0 or topic in topics_list) and hasattr(msg, 'header'):
-                t = msg.header.stamp + delay_duration
-                num_changed_timestamps += 1
+            if len(topics_list) == 0 or topic in topics_list:
+                if hasattr(msg, 'header'):
+                    t = msg.header.stamp + delay_duration
+                    num_changed_timestamps += 1
+                elif topic == "/tf" and msg.transforms:
+                    t = msg.transforms[0].header.stamp + delay_duration
             out_bag.write(topic, msg, t)
 
 print("Finished rewriting bagfile, processed {} messages, changed timestamps for {} of them.".format(
