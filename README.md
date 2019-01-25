@@ -1,16 +1,31 @@
 # movie_publisher
 
-This node serves a video file as video topic source (`sensor_msgs/Image` and friends).
+This package contains several tools for using movie files in ROS (playback, conversion to bag files etc.).
 
 It handles any file formats the system installation of ffmpeg can decode.
 
+## Main tools
+
+- `movie_publisher_node`: A ROS node that serves a video file as video topic source (`sensor_msgs/Image` and friends).
+- `movie_publisher.launch`: A launch file for convenient usage of the node. It also allows starting an 
+`image_transport/republish` node that converts the video stream from raw to compressed/theora.
 In the `immediate` mode, it can also be used to convert video files to bagfiles in a batch.
+- `movie_to_bag`: A batch script that takes a video as input and transforms it into a bag file.
+- `add_movie_to_bag`: A batch script that adds a video as a topic into an existing bag file.
+
+### Helper tools
+
+- `fix_bag_timestamps`: A batch script that rewrites bag files so that the message publication time is taken from the 
+message header. This allows you to generate bagfile data at high speed and then reprocess them to have more suitable
+publication timestamps.
+- `merge.py`: A copy of [srv_tools/merge.py](https://github.com/srv/srv_tools/blob/kinetic/bag_tools/scripts/merge.py) 
+which is not available in indigo.
 
 ## movie_publisher_node
 
-### Topics
+### Published topics
 
-- `movie` (`sensor_msgs/Image`): The published movie.
+- `movie` (`sensor_msgs/Image`): The published movie, in raw format.
 
 ### Node-private parameters:
 
@@ -52,13 +67,88 @@ This launch file takes arguments with the same name as the node's parameters.
 
 Additionally, it takes these arguments:
 
-- `transport` (string, default `'raw'`): Type of the image transport. In not `'raw'`, the
+- `transport` (string, default `'raw'`): Type of the image transport. The
       launch file will start up an `image_transport/republish` node that publishes the video
-      encoded to this transport type. In ROS Indigo and older, you also need to set 
-      `transport_run_republish_node` to `true` for this setting to take effect.
-- `transport_run_republish_node` (bool, default `false`): Set to `true` if you change the
-      value of `transport`.
+      encoded to this transport type.
 - `republished_topic_basename` (string, default `movie_$(arg transport)`): Base name of the
       topic that will serve the republished messages. Full name of the topic will be
-      `$(arg republished_topic_basename)/$(arg transport)`. The base name cannot be the same
-      as the topic the `movie_publisher_node` subscribes to (`movie` by default).
+      `$(arg republished_topic_basename)/$(arg transport)` (or `$(arg republished_topic_basename)` in case of `raw` 
+      transport). The base name cannot be the same as the topic the `movie_publisher_node` subscribes to (`movie` by 
+      default).
+      
+## movie_to_bag
+
+Convert a movie file to a bag file with video topic.
+
+It is a Bash script with ROS node-like API - you pass it parameters via `_param:=value` on commandline or via ROS param
+server. 
+
+### Node-private parameters:
+
+- `movie` (string): Path to the source movie file.
+- `bag` (string): Path where the result should be stored.
+- `topic` (string): name of the movie's topic in the bag file
+- `overwrite_bag` (bool, default false): If true, overwrites existing `bag` file, otherwise exits with error if `bag` 
+exists.
+- `tmp_bag` (string, default `/tmp/movie.bag`): Path where a temporary bag file might be stored.
+- `transport` (string, default `compressed`): Name of the image transport to use for encoding the image. Either `raw`,
+`compressed`, `theora` or any other installed image transport.
+
+### Usage
+
+Call this script from commandline setting the node-private parameters, and pass any other `arg:=value` arguments - 
+these will be relayed to `movie_publisher.launch` as is. Do not pass arguments that would collide with the node-private
+parameters of this script (e.g. `movie_file`).
+
+Example:
+
+    rosrun movie_publisher movie_to_bag _movie:=movie.mp4 _bag:=movie.bag _topic:="/movie" start:=5 fake_time_start:=1548323340.24
+    
+## add_movie_to_bag
+
+Add a movie file to an existing bagfile as a topic.
+
+It is a Bash script with ROS node-like API - you pass it parameters via `_param:=value` on commandline or via ROS param
+server. 
+    
+### Node-private parameters:
+
+- `movie` (string): Path to the source movie file.
+- `bag_in` (string): Path to the source bag file.
+- `bag_out` (string, default: `output.bag`): Path where the result should be stored.
+- `topic` (string): Name of the movie's topic in the bag file.
+- `movie_delay` (int, default `0`): Delay (in seconds) of the movie file from the bag file start. May be negative.
+- `overwrite_out_bag` (bool, default false): If true, overwrites existing `bag_out` file, otherwise exits with error if 
+`bag_out` exists.
+- `bag_tmp` (string, default `/tmp/movie_add_to.bag`): Path where a temporary bag file might be stored.
+- `transport` (string, default `compressed`): Name of the image transport to use for encoding the image. Either `raw`,
+`compressed`, `theora` or any other installed image transport.
+
+### Usage
+
+Call this script from commandline setting the node-private parameters, and pass any other `arg:=value` arguments - 
+these will be relayed to `movie_publisher.launch` as is. Do not pass arguments that would collide with the node-private
+parameters of this script (e.g. `movie_file`).
+
+Example:
+
+    rosrun movie_publisher add_movie_to_bag _movie:=movie.mp4 _bag_in:=movie_in.bag _bag_out:=movie_out.bag _topic:="/movie" start:=5 movie_delay:=-1
+    
+    
+## fix_bag_timestamps
+
+Goes through `in_bag` and for all messages with a header field sets their publication time to the time stored in their 
+`header.stamp` plus `delay`. If `topics` are set, only works on messages on the listed topics. Reading timestamps from 
+`/tf` is also supported.
+
+It is a Python script with ROS node-like API - you pass it parameters via `_param:=value` on commandline. 
+      
+### Node-private parameters:
+
+- `in_bag` (string): Path to the source bag file.
+- `out_bag` (string): Path where the result should be stored.
+- `topics` (string, default: `''`): If nonempty, rewrite only timestamps of the listed topics. Pass a comma-separated 
+list of topics. 
+- `delay` (int, default `0`): Delay (in seconds) which is added to the timestamp read from header. May be negative.
+- `overwrite_existing` (bool, default false): If true, overwrites existing `out_bag` file, otherwise exits with error if 
+`out_bag` exists.
