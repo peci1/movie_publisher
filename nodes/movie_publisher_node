@@ -3,6 +3,7 @@
 import math
 import numbers
 import os
+import re
 import time
 
 import rospy
@@ -10,6 +11,119 @@ from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
 import imageio
+
+import cv2
+try:
+    from cv2 import CAP_PROP_FPS
+    from cv2 import CAP_PROP_FRAME_COUNT
+    from cv2 import CAP_PROP_POS_MSEC
+    from cv2 import CAP_PROP_POS_AVI_RATIO
+except ImportError:
+    from cv2.cv import CV_CAP_PROP_FPS as CAP_PROP_FPS
+    from cv2.cv import CV_CAP_PROP_FRAME_COUNT as CAP_PROP_FRAME_COUNT
+    from cv2.cv import CV_CAP_PROP_POS_MSEC as CAP_PROP_POS_MSEC
+    from cv2.cv import CV_CAP_PROP_POS_AVI_RATIO as CAP_PROP_POS_AVI_RATIO
+
+
+class OpenCVMoviepyShim:
+
+    # Parts adapted from https://github.com/Zulko/moviepy under the MIT license
+
+    def __init__(self, filename):
+        self.start = None
+        self.end = None
+        self.duration = None
+        self.fps = None
+
+        self._capture = cv2.VideoCapture(filename)
+        if not self._capture.isOpened():
+            self._ioerror()
+
+        self.fps = self._capture.get(CAP_PROP_FPS)
+        self.start = 0.0
+
+        self.duration = self._capture.get(CAP_PROP_FRAME_COUNT) / self.fps
+        self.end = self.duration
+
+        self._capture.set(CAP_PROP_POS_MSEC, 0.0) or self._ioerror()
+
+    def _ioerror(self):
+        raise IOError("Could not open the video file with OpenCV. Try installing moviepy via pip and running again.")
+
+    def set_start(self, t, change_end=True):
+        t = self._cvsecs(t)
+        self.start = t
+        if (self.duration is not None) and change_end:
+            self.end = t + self.duration
+        elif self.end is not None:
+            self.duration = self.end - self.start
+        return self
+
+    def set_end(self, t):
+        t = self._cvsecs(t)
+        self.end = t
+        if self.end is None:
+            return
+        self.duration = self.end - self.start
+        return self
+
+    def set_duration(self, t, change_end=True):
+        t = self._cvsecs(t)
+        self.duration = t
+        if change_end:
+            self.end = self.start + t
+        else:
+            self.start = self.end - t
+        return self
+
+    def iter_frames(self, with_times=False):
+        self._capture.set(CAP_PROP_POS_MSEC, self.start * 1000) or self._ioerror()
+        while self._capture.isOpened():
+            frame_read, frame = self._capture.read()
+            if not frame_read:
+                break
+
+            timestamp = self._capture.get(CAP_PROP_POS_MSEC) / 1000.0
+            duration = timestamp - self.start
+            if timestamp > self.end or duration > self.duration:
+                break
+
+            if with_times:
+                yield duration, frame
+            else:
+                yield frame
+
+    def close(self):
+        self._capture.release()
+
+    @staticmethod
+    def _is_string(obj):
+        try:
+            return isinstance(obj, basestring)
+        except NameError:
+            return isinstance(obj, str)
+
+    def _cvsecs(self, time):
+        if self._is_string(time):
+            if (',' not in time) and ('.' not in time):
+                time = time + '.0'
+            expr = r"(\d+):(\d+):(\d+)[,|.](\d+)"
+            finds = re.findall(expr, time)[0]
+            nums = list(map(float, finds))
+            return (3600 * int(finds[0])
+                    + 60 * int(finds[1])
+                    + int(finds[2])
+                    + nums[3] / (10 ** len(finds[3])))
+
+        elif isinstance(time, tuple):
+            if len(time) == 3:
+                hr, mn, sec = time
+            elif len(time) == 2:
+                hr, mn, sec = 0, time[0], time[1]
+            return 3600 * hr + 60 * mn + sec
+
+        else:
+            return float(time)
 
 
 class MoviePublisher:
@@ -44,7 +158,10 @@ class MoviePublisher:
           subscribers some time after the publisher was created. Tweak this number until you get no missing start
           messages.
     - publisher_queue_size (int, default 1000 in immediate mode, 10 otherwise): queue_size of the movie publisher.
-    - ffmpeg (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use.
+    - backend (string, default "moviepy"): The backend to use for reading video. Either "moviepy" or "opencv". If
+          "moviepy" is selected and not found, "opencv" will be used (which might support less codecs).
+    - ffmpeg (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use (for "moviepy"
+           backend).
     """
 
     def __init__(self):
@@ -83,13 +200,23 @@ class MoviePublisher:
         if ffmpeg is not None and len(ffmpeg) > 0:
             os.environ["FFMPEG_BINARY"] = ffmpeg
 
-        # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
-        try:
-            from moviepy.video.io.VideoFileClip import VideoFileClip
-        except imageio.core.fetching.NeedDownloadError:
-            rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
-            imageio.plugins.ffmpeg.download()
-            from moviepy.video.io.VideoFileClip import VideoFileClip
+        backend = rospy.get_param("~backend", "moviepy")
+        if backend == "moviepy":
+            # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
+            try:
+                from moviepy.video.io.VideoFileClip import VideoFileClip
+            except imageio.core.fetching.NeedDownloadError:
+                rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
+                imageio.plugins.ffmpeg.download()
+                from moviepy.video.io.VideoFileClip import VideoFileClip
+            except ImportError:
+                backend = "opencv"
+        # fallback to opencv backend
+        if backend == "opencv":
+            VideoFileClip = OpenCVMoviepyShim
+
+        if self.verbose:
+            rospy.loginfo("Using " + backend + " backend.")
 
         # import the clip
         self.clip = VideoFileClip(self.file)

@@ -4,6 +4,16 @@ This package contains several tools for using movie files in ROS (playback, conv
 
 It handles any file formats the system installation of ffmpeg can decode.
 
+**Important: This package is meant to work with moviepy. However, due to packaging issues, moviepy cannot be installed
+automatically as a dependency. There's a fallback using OpenCV, which is however worse. Please, install moviepy manually
+calling:**
+
+    sudo pip install moviepy
+
+or
+
+    rosdep install python-moviepy-pip
+
 ## Main tools
 
 - `movie_publisher_node`: A ROS node that serves a video file as video topic source (`sensor_msgs/Image` and friends).
@@ -22,6 +32,9 @@ publication timestamps.
 which is not available in indigo.
 
 ## movie_publisher_node
+
+The node can run with either of two backends - `moviepy` and `opencv`. `moviepy` is strongly recommended, as it uses
+`ffmpeg`, which is quite versatile and efficient. Is you do not set the `backend` param, autodetection is run.
 
 ### Published topics
 
@@ -59,6 +72,8 @@ which is not available in indigo.
       subscribers some time after the publisher was created. Tweak this number until you get no missing start
       messages.
 - `publisher_queue_size` (int, default 1000 in immediate mode, 10 otherwise): `queue_size` of the movie publisher.
+- `backend` (string, default "moviepy"): The backend to use for reading video. Either `moviepy` or `opencv`. If
+      `moviepy` is selected and not found, `opencv` will be used (which might support less codecs).
 - `ffmpeg` (string, default ""): If nonempty, specifies the (absolute) path to the ffmpeg binary to use.
 
 ## movie_publisher.launch

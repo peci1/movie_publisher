@@ -15,6 +15,7 @@
     <arg name="spin_after_end" default="false" />
     <arg name="verbose" default="false" />
     <arg name="wait_after_publisher_created" default="1.0" />
+    <arg name="backend" default="moviepy" />
     <arg name="ffmpeg" default="" />
     <arg name="publisher_queue_size" default="10" unless="$(arg immediate)" />
     <arg name="publisher_queue_size" default="1000" if="$(arg immediate)" />
@@ -35,6 +36,7 @@
         <param name="verbose" value="$(arg verbose)" />
         <param name="wait_after_publisher_created" value="$(arg wait_after_publisher_created)" />
         <param name="publisher_queue_size" value="$(arg publisher_queue_size)" />
+        <param name="backend" value="$(arg backend)" />
         <param name="ffmpeg" value="$(arg ffmpeg)" />
     </node>
 
