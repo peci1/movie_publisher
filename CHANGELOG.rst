@@ -2,6 +2,13 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Added checks for exit codes to bash scripts.
+* Fixed install targets.
+* Added python-opencv alternative backend. This resolves debian packaging issues.
+* Contributors: Martin Pecka
+
 1.0.1 (2019-01-25)
 ------------------
 * Fixed install rule.
