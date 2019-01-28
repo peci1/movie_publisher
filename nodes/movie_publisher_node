@@ -45,6 +45,10 @@ class OpenCVMoviepyShim:
         self.duration = self._capture.get(CAP_PROP_FRAME_COUNT) / self.fps
         self.end = self.duration
 
+        # this happens e.g. when reading OGV files in Ubuntu
+        if math.isnan(self.fps) or math.isnan(self.duration) or math.isnan(self.end):
+            self._ioerror()
+
         self._capture.set(CAP_PROP_POS_MSEC, 0.0) or self._ioerror()
 
     def _ioerror(self):
