@@ -12,7 +12,7 @@ Usage: movie_to_bag _movie:=movie.mp4 _bag:=target.bag _topic:=output_topic_base
   * `additional movie_publisher.launch args`: Additional arguments that are passed through to movie_publisher.launch. Refer to that file for their description.
 USAGE
 )
-trap '[[ $? != 0 ]] && echo "${usage}" 1>&2' EXIT
+trap '[[ $? != 0 ]] && [[ ${SHLVL} -le 2 ]] && echo "${usage}" 1>&2' EXIT
 
 if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
     echo "${usage}"
@@ -58,7 +58,7 @@ echo "Launching movie_publisher.launch with these additional arguments: ${additi
 roslaunch movie_publisher movie_publisher.launch movie_file:="${movie}" transport:="${transport}" \
     wait_after_publisher_created:=5.0 immediate:=true republished_topic_basename:="${topic}" ${additional_args} 1>/dev/null
 
-sleep 5
+sleep 2
 
 rosnode kill movie_to_bag 1>/dev/null
 
@@ -66,8 +66,15 @@ while [[ -f "${tmp_bag}.active" ]]; do
     sleep 1
 done
 
-num_frames_video=$(rosparam get "/movie_publisher/num_frames")
 num_frames_bag=$(rosbag info -k messages -y "${tmp_bag}")
+if [[ -z "${num_frames_bag}" ]]; then
+    exit 4
+fi
+
+num_frames_video=$(rosparam get "/movie_publisher/num_frames")
+if [[ -z "${num_frames_bag}" ]]; then
+    exit 5
+fi
 
 if [[ "${num_frames_bag}" -lt $((${num_frames_video} * 9 / 10)) ]]; then
     echo "Bag file contains only ${num_frames_bag} frames out of ${num_frames_video}. Consider setting playback_rate
@@ -80,7 +87,7 @@ fi
 echo "Fixing timestamps"
 
 rosrun movie_publisher fix_bag_timestamps _in_bag:="${tmp_bag}" _out_bag:="${bag}" \
-    _overwrite_existing:="${overwrite_bag}"
+    _overwrite_existing:="${overwrite_bag}" || exit 6
 
 rm "${tmp_bag}"
 
