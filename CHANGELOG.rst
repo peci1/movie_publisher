@@ -2,8 +2,8 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.1 (2019-02-07)
+------------------
 * Fixed permissions.
 * Moved to python from bc, because it is not installed everywhere.
 * More informative error strings.
