@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Copied from https://raw.githubusercontent.com/srv/srv_tools/kinetic/bag_tools/scripts/merge.py since this script is
-# not released for indigo.
+# not released for kinetic.
 """
 Copyright (c) 2015,
 Enrique Fernandez Perdomo
