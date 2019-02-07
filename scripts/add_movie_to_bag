@@ -26,16 +26,16 @@ rosbash_param transport "transport" "compressed"
 additional_args="${rosbash_unused_argv[@]}"
 
 if [[ ! -f "${bag_in}" ]]; then
-    echo "Source bag file does not exist." 1>&2
+    echo "Source bag ${bag_in} does not exist." 1>&2
     exit 2
 fi
 
 if [[ -f "${bag_out}" ]]; then
     if [[ "${overwrite_out_bag}" == "False" ]]; then
-        echo "Target file already exists, not overwriting." 1>&2
+        echo "Target ${bag_out} already exists, not overwriting." 1>&2
         exit 3
     else
-        echo "Target file already exists, deleting it."
+        echo "Target ${bag_out} already exists, deleting it."
         rm "${bag_out}"
     fi
 fi

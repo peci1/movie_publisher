@@ -35,12 +35,12 @@ additional_args="${rosbash_unused_argv[@]}"
 # Validate parameters
 
 if [[ ! -f "${movie}" ]]; then
-    echo "Movie file does not exist." 1>&2
+    echo "Movie ${movie} does not exist." 1>&2
     exit 2
 fi
 
 if [[ -f "${bag}" ]] && [[ "${overwrite_bag}" == "False" ]]; then
-    echo "Target file already exists, not overwriting." 1>&2
+    echo "Target ${bag} already exists, not overwriting." 1>&2
     exit 3
 fi
 
