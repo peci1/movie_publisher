@@ -2,6 +2,15 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fixed permissions.
+* Kinetic release.
+* Moved to python from bc, because it is not installed everywhere.
+* More informative error strings.
+* Updated to the fixed version rosbash_params==1.0.2.
+* Contributors: Martin Pecka
+
 1.1.0 (2019-01-28)
 ------------------
 * Added checks for exit codes to bash scripts.
