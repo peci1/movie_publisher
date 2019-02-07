@@ -30,7 +30,7 @@ rosbash_param overwrite_bag "overwrite_bag" False
 rosbash_param tmp_bag "tmp_bag" "/tmp/movie.bag"
 rosbash_param transport "transport" "compressed"
 
-additional_args="${rosbash_unused_argv}"
+additional_args="${rosbash_unused_argv[@]}"
 
 # Validate parameters
 

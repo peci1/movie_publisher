@@ -18,7 +18,7 @@
   <exec_depend>libav</exec_depend>
   <!--exec_depend>python-moviepy-pip</exec_depend--> <!-- recommended but optional dependency -->
   <exec_depend>python-opencv</exec_depend>
-  <exec_depend>rosbash_params</exec_depend>
+  <exec_depend version_gte="1.0.2">rosbash_params</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
 </package>

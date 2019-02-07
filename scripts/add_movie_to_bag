@@ -23,7 +23,7 @@ rosbash_param overwrite_out_bag "overwrite_out_bag" False
 rosbash_param bag_tmp "bag_tmp" "/tmp/movie_add_to.bag"
 rosbash_param transport "transport" "compressed"
 
-additional_args="${rosbash_unused_argv}"
+additional_args="${rosbash_unused_argv[@]}"
 
 if [[ ! -f "${bag_in}" ]]; then
     echo "Source bag file does not exist." 1>&2
@@ -47,7 +47,7 @@ fi
 bag_start_time=$(bc <<< "scale=2; (${bag_start_time} + ${movie_delay})/1")
 
 rosrun movie_publisher movie_to_bag _movie:="${movie}" _bag:="${bag_tmp}" _topic:="${topic}" \
-    _transport:="${transport}" _overwrite_bag:=true fake_time_start:="${bag_start_time}" "${additional_args}" || exit $?
+    _transport:="${transport}" _overwrite_bag:=true fake_time_start:="${bag_start_time}" ${additional_args} || exit $?
 
 echo "Merging into ${bag_out}"
 
