@@ -44,7 +44,7 @@ bag_start_time=$(rosbag info -k start -y "${bag_in}")
 if [[ -z "${bag_start_time}" ]]; then
     exit 4
 fi
-bag_start_time=$(bc <<< "scale=2; (${bag_start_time} + ${movie_delay})/1")
+bag_start_time=$(python -c "print '%.2f' % (${bag_start_time} + ${movie_delay})")
 
 rosrun movie_publisher movie_to_bag _movie:="${movie}" _bag:="${bag_tmp}" _topic:="${topic}" \
     _transport:="${transport}" _overwrite_bag:=true fake_time_start:="${bag_start_time}" ${additional_args} || exit $?
