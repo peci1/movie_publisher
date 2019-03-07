@@ -5,12 +5,12 @@ import numbers
 import os
 import re
 import time
+import sys
 
 import rospy
 from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
-import imageio
 
 import cv2
 try:
@@ -206,6 +206,14 @@ class MoviePublisher:
 
         backend = rospy.get_param("~backend", "moviepy")
         if backend == "moviepy":
+            try:
+                import imageio
+            except ImportError:
+                rospy.logerr('Python package imageio was not found on the system.\n'
+                    'You apparently installed movie_publisher via package manager which cannot install imageio on this system.\n'
+                    'Please, call "sudo python2 -m pip install imageio" manually.\n')
+                raise
+
             # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
             try:
                 from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -213,9 +221,13 @@ class MoviePublisher:
                 rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
                 imageio.plugins.ffmpeg.download()
                 from moviepy.video.io.VideoFileClip import VideoFileClip
-            except ImportError:
+            except ImportError:                
+                # fallback to opencv backend
                 backend = "opencv"
-        # fallback to opencv backend
+                rospy.logwarn('Python package moviepy was not found on the system, thus a fallback using OpenCV will be used.\n'
+                    'You apparently installed movie_publisher via package manager which cannot install moviepy on this system.\n'
+                    'To get moveipy, call "sudo python2 -m pip install moviepy" manually.\n')
+
         if backend == "opencv":
             VideoFileClip = OpenCVMoviepyShim
 
