@@ -2,8 +2,8 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.0 (2019-03-10)
+------------------
 * Updated for melodic.
 * Contributors: Martin Pecka
 
