@@ -2,6 +2,11 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updated for melodic.
+* Contributors: Martin Pecka
+
 1.2.1 (2019-02-07)
 ------------------
 * Fixed permissions.
