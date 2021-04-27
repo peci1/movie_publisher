@@ -194,6 +194,8 @@ class MoviePublisher:
 
         self.queue_size = rospy.get_param("~publisher_queue_size", 10 if not self.immediate else 1000)
 
+        self._pixel_format = "bgr8"
+
         if not isinstance(self.playback_rate, numbers.Real):
             self.playback_rate = None
 
@@ -209,10 +211,12 @@ class MoviePublisher:
             # if no or old ffmpeg is found, the first import fails; call the download script from imageio and try again
             try:
                 from moviepy.video.io.VideoFileClip import VideoFileClip
+                self._pixel_format = "rgb8"
             except imageio.core.fetching.NeedDownloadError:
                 rospy.logwarn("movie_publisher_node: ffmpeg not found, trying to download it from imageio")
                 imageio.plugins.ffmpeg.download()
                 from moviepy.video.io.VideoFileClip import VideoFileClip
+                self._pixel_format = "rgb8"
             except ImportError:
                 backend = "opencv"
         # fallback to opencv backend
@@ -298,7 +302,7 @@ class MoviePublisher:
 
                 try:
                     # convert the frame to sensor_msgs/Image
-                    msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
+                    msg = self.bridge.cv2_to_imgmsg(frame, self._pixel_format)
                     msg.header.frame_id = self.frame_id
 
                     # in the immediate mode, we compute frame timestamps explicitly
