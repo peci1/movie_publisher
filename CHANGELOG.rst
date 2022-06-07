@@ -2,8 +2,8 @@
 Changelog for package movie_publisher
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2022-06-08)
+------------------
 * Compatibility with Noetic
 * Contributors: Martin Pecka
 
