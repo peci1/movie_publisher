@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copied from https://raw.githubusercontent.com/srv/srv_tools/kinetic/bag_tools/scripts/merge.py since this script is
 # not released for kinetic.
 """

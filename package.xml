@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>movie_publisher</name>
   <version>1.3.1</version>
   <description>Node for using a video file as video topic source.</description>
@@ -14,12 +14,13 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <!--exec_depend>bag_tools</exec_depend--> <!-- not released for melodic/bionic -->
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>ffmpeg</exec_depend>
-  <exec_depend>python-imageio</exec_depend>
+  <exec_depend condition="$ROS_DISTRO != noetic">python-imageio</exec_depend>
+  <exec_depend condition="$ROS_DISTRO == noetic">python3-imageio</exec_depend>
   <!--exec_depend>python-moviepy-pip</exec_depend--> <!-- recommended but optional dependency -->
-  <exec_depend>python-opencv</exec_depend>
+  <exec_depend condition="$ROS_DISTRO != noetic">python-opencv</exec_depend>
+  <exec_depend condition="$ROS_DISTRO == noetic">python3-opencv</exec_depend>
   <exec_depend version_gte="1.0.2">rosbash_params</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
